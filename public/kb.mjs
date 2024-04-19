@@ -1,6 +1,6 @@
 
 import {keyCodeGen} from './ch9329_code.mjs';
-const CH9329_FRAME_START=[57,171];
+const CH9329_FRAME_START=[87,171];
 const CH9329_ADDR=0
 const CH9329_SEND_KB_GENERAL_DATA=2
 //Function Key bit:Rwin,Ralt,Rshift,RCtrl,Lwin,Lalt,Lshift,Lctrl
