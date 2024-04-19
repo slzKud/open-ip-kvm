@@ -1,3 +1,15 @@
+# About This Fork
+
+This repo is modified from [Nihiue/open-ip-kvm](https://github.com/Nihiue/open-ip-kvm) to use [WCH CH9329](https://www.wch.cn/products/CH9329.html) Relpace to Arduino Leonardo to Emulate HID.
+
+**The C0 C1 M0 M1 of the CH9329 module need to be all 1. (Protocol transmission mode, simulates keyboard, mouse and custom HID device). That is, pull out the jumper caps for these pins on the module board.**
+
+## Why?
+
+* CH9329 modules is cheaper and smaller than Arduino Leonardo. (CH9329 modules only use 5CNY(~0.7 USD))
+
+* The peripheral circuit of CH9329 is relatively simple and easy to integrate on a PCB.
+
 # Open IP-KVM
 
 This project provides an open-source IP-KVM solution.
@@ -47,7 +59,8 @@ The unit plugs into the Keyboard, Video and Mouse ports of a computer or server 
   * Recommendation: `Phicomm N1`, [Raspberry Pi 4](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) or other models,
   * Recent linux kernel
   * 2+ USB ports
-* Arduino Leonardo [link](https://docs.arduino.cc/hardware/leonardo)
+* ~~Arduino Leonardo [link](https://docs.arduino.cc/hardware/leonardo)~~
+* CH9329 Modules
   * Emulate HID (mouse and keyboard)
 * Optional
   * USB-to-TTL Adapter
@@ -59,8 +72,7 @@ The unit plugs into the Keyboard, Video and Mouse ports of a computer or server 
 
 ## Deploy and Run
 
-### 1. Prepare Arduino Leonardo
-
+### ~~1. Prepare Arduino Leonardo~~ (see note on top)
 <details>
 
 <summary>Upload program</summary>
@@ -105,7 +117,7 @@ SSH to linux SBC with your pc.
 
 * Connect IO
   * HDMI-USB capture device via USB
-  * Arduino Leonardo via native serial port or USB-TTL adapter
+  * CH9329 Modules via native serial port or USB-TTL adapter
 * Edit `open-ip-kvm/server/config.json`
   * `mjpg_streamer.device`: path of HDMI-USB capture device
   * `serialport`: path of serial port
@@ -116,7 +128,7 @@ SSH to linux SBC with your pc.
 ### 3. Run
 
 1. Connect HDMI output of target computer to HDMI-USB capture device
-2. Connect target computer to leonardo via USB
+2. Connect target computer to CH9329 Modules via USB
 3. Run `cd open-ip-kvm && npm run start` on linux SBC
 4. Turn on target computer
 5. Open `http://[IP of Linux SBC]:8000` in web browser

@@ -1,43 +1,15 @@
 
-const KB_EVT_START = 248;
-const KEY_SEQUENCE_EVT_START = 250;
-const EVT_END = 251;
-
-const KB_EVT_TYPE_KEYDOWN = 1;
-const KB_EVT_TYPE_KEYUP = 2;
-const KB_EVT_TYPE_RESET = 3;
-
-// https://www.arduino.cc/reference/en/language/functions/usb/keyboard/keyboardmodifiers/
- const keyRemap = {
-  Control: 0x80,
-  Shift: 0x81,
-  Alt: 0x82,
-  Meta: 0x83,
-  Tab: 0xB3,
-  CapsLock: 0xC1,
-  Backspace: 0xB2,
-  Enter: 0xB0,
-  ContextMenu: 0xED,
-  Insert: 0xD1,
-  Delete: 0xD4,
-  Home: 0xD2,
-  End: 0xD5,
-  PageUp: 0xD3,
-  PageDown: 0xD6,
-  ArrowUp: 0xDA,
-  ArrowDown: 0xD9,
-  ArrowLeft: 0xD8,
-  ArrowRight: 0xD7,
-  PrintScreen: 0xCE,
-  ScrollLock: 0xCF,
-  Pause: 0xD0,
-  Escape: 0xB1
-};
-
-for (let i = 0; i < 12; i += 1) {
-  keyRemap[`F${1 + i}`] = 0xC2 + i;
-}
-
+import {keyCodeGen} from './ch9329_code.mjs';
+const CH9329_FRAME_START=[57,171];
+const CH9329_ADDR=0
+const CH9329_SEND_KB_GENERAL_DATA=2
+//Function Key bit:Rwin,Ralt,Rshift,RCtrl,Lwin,Lalt,Lshift,Lctrl
+let funKeyBit=[0,0,0,0,0,0,0,0];
+let stdKeyByte=[0,0,0,0,0,0];
+let keyCodeTable = {};
+keyCodeTable=keyCodeGen();
+const keyArray= new Array(255);
+keyArray.fill(0);
 function isChar(key) {
   if (!key || key.length > 1) {
     return false;
@@ -47,53 +19,103 @@ function isChar(key) {
 }
 
 export function sendEvent(channel, key, type) {
-
-  // Keyboard event has fixed length of 4 bytes
-
-  // Byte 0: Start Flag - KB_EVT_START
-  // Byte 1: Data - Event Param - KB_EVT_TYPE_KEYDOWN | KB_EVT_TYPE_KEYUP | KB_EVT_TYPE_RESET
-  // Byte 2: Data - Event Payload - [KeyCode to Press]
-  // Byte 3: End Flag - EVT_END
-
-  let payload = new Array(4);
+  let payload = new Array(14);
   payload.fill(0);
-
-  payload[0] = KB_EVT_START;
-
+  payload[0] = CH9329_FRAME_START[0];
+  payload[1] = CH9329_FRAME_START[1];
+  payload[2] = CH9329_ADDR;
+  payload[3] = CH9329_SEND_KB_GENERAL_DATA;
   if (type === 'keydown') {
-    payload[1] = KB_EVT_TYPE_KEYDOWN;
+    // console.log("按下"+String(key))
+    keyEvent(key,1);
   } else if (type === 'keyup') {
-    payload[1] = KB_EVT_TYPE_KEYUP;
+    // console.log("释放"+String(key))
+    keyEvent(key,0);
   } else if (type === 'reset') {
-    payload[1] = KB_EVT_TYPE_RESET;
+    // console.log("重置")
+    keyArray.fill(0);
+    funKeyBit.fill(0);
+    stdKeyByte.fill(0);
   } else {
-    return;
+      return;
   }
-
-  if (type === 'reset') {
-    payload[2] = 0;
-  } else if (isChar(key)) {
-    payload[2] = key.codePointAt(0);
-  } else if (keyRemap[key]) {
-    payload[2] = keyRemap[key];
-  } else {
-    return;
-  }
-
-  payload[3] = EVT_END;
-
+  keyArray2Payload();
+  payload[4] = 8;
+  payload[5] = funKeyBit2Payload();
+  payload[6] = 0;
+  payload[7] = stdKeyByte[0];
+  payload[8] = stdKeyByte[1];
+  payload[9] = stdKeyByte[2];
+  payload[10] = stdKeyByte[3];
+  payload[11] = stdKeyByte[4];
+  payload[12] = stdKeyByte[5];
+  payload[13] = addSum(payload,13);
+  console.log(payload)
   const msg = {
     type: 'write_serial',
     payload,
   };
 
-  // console.log(type, key, payload[2]);
+  console.log(type, key, payload);
   channel.send(JSON.stringify(msg));
 }
-
+function keyEvent(keyCode,flag){
+  if(keyCode == "ControlLeft"){
+    funKeyBit[7] = flag;
+    return 0;
+  }
+  if(keyCode == "ControlRight"){
+    funKeyBit[1] = flag;
+    return 0;
+  }
+  if(keyCode == "ShiftLeft"){
+    funKeyBit[6] = flag;
+    return 0;
+  }
+  if(keyCode == "ShiftRight"){
+    funKeyBit[2] = flag;
+    return 0;
+  }
+  if(keyCode == "AltLeft"){
+    funKeyBit[5] = 5;
+    return 0;
+  }
+  if(keyCode == "AltRight"){
+    funKeyBit[1] = flag;
+    return 0;
+  }
+  if(keyCodeTable[keyCode] != undefined){
+    keyArray[keyCodeTable[keyCode]]=flag;
+    return 0;
+  }
+}
+function funKeyBit2Payload(){
+  return (funKeyBit[0]<<7)|(funKeyBit[1]<<6)|(funKeyBit[2]<<5)|(funKeyBit[3]<<4)|(funKeyBit[4]<<3)|(funKeyBit[5]<<2)|(funKeyBit[6]<<1)|(funKeyBit[7]);
+}
+function keyArray2Payload(){
+  let i = 0;
+  let n = 0;
+  stdKeyByte.fill(0);
+  for(i=0;i<255;i=i+1){
+    if(keyArray[i]==1){
+      if(n>6){
+        return 0;
+      }
+      stdKeyByte[n]=i;
+      n=n+1;
+    }
+  }
+  return 0;
+}
+function addSum(arrayList,len){
+  let sum = 0;
+  for(let i=0;i<len;i++){
+    sum = sum +arrayList[i];
+  }
+  let result = sum & 0xff;
+  return result
+}
 function sendSeqBuf(buf, channel) {
-  buf.unshift(KEY_SEQUENCE_EVT_START);
-  buf.push(EVT_END);
   channel.send(JSON.stringify({
     type: 'write_serial',
     payload: buf

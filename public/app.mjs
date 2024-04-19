@@ -76,14 +76,14 @@ new Vue({
           this.setScreenFocus(false);
           return;
         }
-        kb.sendEvent(this.$channel, evt.key, 'keydown');
+        kb.sendEvent(this.$channel, evt.code, 'keydown');
       });
 
       document.addEventListener('keyup', (evt) => {
         if (!this.isKeyCaptureActive) {
           return;
         }
-        kb.sendEvent(this.$channel, evt.key, 'keyup');
+        kb.sendEvent(this.$channel, evt.code, 'keyup');
       });
     },
     bindMouseHandler() {
