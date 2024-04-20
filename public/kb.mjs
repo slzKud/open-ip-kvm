@@ -1,5 +1,5 @@
 
-import {keyCodeGen} from './ch9329_code.mjs';
+import {keyCodeGen,revsereKeyCode} from './ch9329_code.mjs';
 const CH9329_FRAME_START=[87,171];
 const CH9329_ADDR=0
 const CH9329_SEND_KB_GENERAL_DATA=2
@@ -8,6 +8,8 @@ let funKeyBit=[0,0,0,0,0,0,0,0];
 let stdKeyByte=[0,0,0,0,0,0];
 let keyCodeTable = {};
 keyCodeTable=keyCodeGen();
+let asciiCodeTable = {};
+asciiCodeTable=revsereKeyCode();
 const keyArray= new Array(255);
 keyArray.fill(0);
 function isChar(key) {
@@ -132,23 +134,51 @@ export async function sendSequence(channel, str) {
   if (str.length > 8192) {
     return alert('sequence is too long')
   }
-
-  let buf = [];
-
+  let kCode=0;
+  let payload = new Array(14);
+  payload.fill(0);
+  payload[0] = CH9329_FRAME_START[0];
+  payload[1] = CH9329_FRAME_START[1];
+  payload[2] = CH9329_ADDR;
+  payload[3] = CH9329_SEND_KB_GENERAL_DATA;
+  payload[4] = 8;
   for (let i = 0; i < str.length; i += 1) {
-    if (isChar(str[i]) || str[i] === '\n') {
-      buf.push(str.codePointAt(i));
+    kCode=str.codePointAt(i)
+    if(asciiCodeTable.normalKey[kCode]!=undefined){
+      payload[5] = 0;
+      payload[7] = asciiCodeTable.normalKey[kCode];
+      payload[13] = addSum(payload,13);
+      sendSeqBuf(payload,channel);
+      payload[7]=0;
+      payload[13] = addSum(payload,13);
+      sendSeqBuf(payload,channel);
+      await sleep(5);
+      continue;
     }
-
-    if (buf.length >= 30) {
-      sendSeqBuf(buf, channel);
-      buf = [];
-      await sleep(200);
+    if(asciiCodeTable.functionKey[kCode]!=undefined){
+      payload[5] = 0;
+      payload[7] = asciiCodeTable.functionKey[kCode];
+      payload[13] = addSum(payload,13);
+      sendSeqBuf(payload,channel);
+      payload[7] = 0;
+      payload[13] = addSum(payload,13);
+      sendSeqBuf(payload,channel);
+      await sleep(5);
+      continue;
     }
-  }
-
-  if (buf.length) {
-    sendSeqBuf(buf, channel);
+    if(asciiCodeTable.shiftKey[kCode]!=undefined){
+      payload[5] = 2; //LeftShift 00000010
+      payload[7] = asciiCodeTable.shiftKey[kCode];
+      payload[13] = addSum(payload,13);
+      sendSeqBuf(payload,channel);
+      payload[5] = 0;
+      payload[7] = 0;
+      payload[13] = addSum(payload,13);
+      sendSeqBuf(payload,channel);
+      await sleep(5);
+      continue;
+    }
+    
   }
 
 }
